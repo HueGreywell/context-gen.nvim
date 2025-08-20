@@ -123,40 +123,4 @@ function M.generate_from_repo()
   end
 end
 
-local function get_edited_git_files()
-  if vim.fn.isdirectory(vim.fs.joinpath(vim.fn.getcwd(), ".git")) == 0 then
-    vim.notify("Not a git repository.", vim.log.levels.ERROR)
-    return {}
-  end
-
-  local edited_files_set = {}
-  local final_files_list = {}
-
-  local function collect_files(command)
-    local files = vim.fn.systemlist(command)
-    if vim.v.shell_error ~= 0 then
-      return
-    end
-
-    for _, file in ipairs(files) do
-      if not edited_files_set[file] then
-        edited_files_set[file] = true
-        table.insert(final_files_list, file)
-      end
-    end
-  end
-
-  collect_files("git diff --name-only")
-  collect_files("git diff --name-only --cached")
-
-  return final_files_list
-end
-
-function M.gen()
-  local file_paths = get_edited_git_files()
-  if file_paths then
-    _generate(file_paths)
-  end
-end
-
 return M
