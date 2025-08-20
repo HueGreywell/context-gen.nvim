@@ -7,10 +7,12 @@ local M = {}
 local opts = {
   output_file = vim.fn.getcwd(),
   add_timestamp = false,
-  output_file_name = "context"
+  output_file_name = "context",
+  excludes = { ".git", ".env" }
 }
 
 function M.setup(user_opts)
+  tree.setup(opts.excludes)
   for key, _ in pairs(user_opts) do
     if user_opts[key] ~= nil then
       opts[key] = user_opts[key]
@@ -40,14 +42,19 @@ local function collect_files_with_headers(file_paths)
       uv.fs_close(fd)
 
       table.insert(output_lines, "\n ----- " .. file_path .. "\n")
-      table.insert(output_lines, file_data)
+
+      if #file_data > 0 then
+        table.insert(output_lines, file_data)
+      else
+        table.insert(output_lines, "[EMPTY FILE]")
+      end
     else
       table.insert(output_lines, "----- " .. file_path)
       table.insert(output_lines, "[Error: could not read file]")
     end
   end
 
-  return output_lines, "\n"
+  return output_lines
 end
 
 local function generate_output_filename()
@@ -62,7 +69,40 @@ local function generate_output_filename()
 end
 
 
-function _generate(file_paths)
+local function filter_excluded_paths(paths)
+  local exclude_set = {}
+
+  for _, pattern in ipairs(opts.excludes) do
+    exclude_set[pattern] = true
+  end
+
+  if not next(exclude_set) then
+    return paths
+  end
+
+  local filtered_paths = {}
+
+  for _, path in ipairs(paths) do
+    local should_exclude = false
+    for component in path:gmatch("([^/]+)") do
+      if exclude_set[component] then
+        should_exclude = true
+        break
+      end
+    end
+
+    if not should_exclude then
+      table.insert(filtered_paths, path)
+    end
+  end
+
+  return filtered_paths
+end
+
+
+local function _generate(file_paths)
+  file_paths = filter_excluded_paths(file_paths)
+
   local tree_str = tree.tree()
 
   local fd = uv.fs_open(generate_output_filename(), "w", 438)
@@ -116,7 +156,7 @@ local function get_all_files_in_cwd()
   return all_files
 end
 
-function M.generate_from_repo()
+function M.generate_from_cwd()
   local file_paths = get_all_files_in_cwd()
   if file_paths then
     _generate(file_paths)

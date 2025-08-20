@@ -1,6 +1,23 @@
 local uv = vim.loop
 local M = {}
 
+local excludes = {}
+
+function M.setup(user_excludes)
+  if user_excludes ~= nil then
+    excludes = user_excludes
+  end
+end
+
+local function exclude(entry)
+  for _, v in ipairs(excludes) do
+    if string.find(entry, v, 1, true) then
+      return true
+    end
+  end
+  return false
+end
+
 local function list_directory_entries(directory_path)
   local entries = {}
   local handle = uv.fs_scandir(directory_path)
@@ -27,6 +44,10 @@ local function build_tree_lines(base_path, indent, lines)
     local stat = uv.fs_stat(entry_path)
     local type_suffix = stat and stat.type == "file" and " [file]" or " [dir]"
 
+    if exclude(entry_path) then
+      goto continue
+    end
+
     if is_last_entry then
       table.insert(lines, indent .. "└── " .. entry_name .. type_suffix)
       build_tree_lines(entry_path, indent .. "    ", lines)
@@ -34,6 +55,7 @@ local function build_tree_lines(base_path, indent, lines)
       table.insert(lines, indent .. "├── " .. entry_name .. type_suffix)
       build_tree_lines(entry_path, indent .. "│   ", lines)
     end
+    ::continue::
   end
 end
 
@@ -45,4 +67,3 @@ function M.tree()
 end
 
 return M
-
