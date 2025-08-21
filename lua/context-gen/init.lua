@@ -65,7 +65,8 @@ local function generate_output_filename()
     name = timestamp .. "-" .. opts.output_file_name
   end
 
-  return vim.fs.joinpath(opts.output_file, name)
+  local o = vim.fn.expand(opts.output_file)
+  return vim.fs.joinpath(o, name)
 end
 
 
